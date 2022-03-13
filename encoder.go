@@ -7,7 +7,7 @@ import (
 	"errors"
 	"log"
 
-	bitset "github.com/skip2/go-qrcode/bitset"
+	bitset "github.com/caiguanhao/qrcode/bitset"
 )
 
 // Data encoding.
