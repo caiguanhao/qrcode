@@ -12,32 +12,18 @@ obscured codes. There are four levels of error recovery: qrcode.{Low, Medium,
 High, Highest}. QR Codes with a higher recovery level are more robust to damage,
 at the cost of being physically larger.
 
-Three functions cover most use cases:
-
 - Create a PNG image:
 
 	var png []byte
 	png, err := qrcode.Encode("https://example.org", qrcode.Medium, 256)
 
-- Create a PNG image and write to a file:
-
-	err := qrcode.WriteFile("https://example.org", qrcode.Medium, 256, "qr.png")
-
-- Create a PNG image with custom colors and write to file:
-
-	err := qrcode.WriteColorFile("https://example.org", qrcode.Medium, 256, color.Black, color.White, "qr.png")
-
-All examples use the qrcode.Medium error Recovery Level and create a fixed
+The example above uses the qrcode.Medium error Recovery Level and create a fixed
 256x256px size QR Code. The last function creates a white on black instead of black
 on white QR Code.
 
 To generate a variable sized image instead, specify a negative size (in place of
 the 256 above), such as -4 or -5. Larger negative numbers create larger images:
 A size of -5 sets each module (QR Code "pixel") to be 5px wide/high.
-
-- Create a PNG image (variable size, with minimum white padding) and write to a file:
-
-	err := qrcode.WriteFile("https://example.org", qrcode.Medium, -5, "qr.png")
 
 The maximum capacity of a QR Code varies according to the content encoded and
 the error recovery level. The maximum capacity is 2,953 bytes, 4,296
@@ -55,9 +41,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"io"
-	"io/ioutil"
-	"os"
 
 	bitset "github.com/caiguanhao/qrcode/bitset"
 	reedsolomon "github.com/caiguanhao/qrcode/reedsolomon"
@@ -80,46 +63,6 @@ func Encode(content string, level RecoveryLevel, size int) ([]byte, error) {
 	}
 
 	return q.PNG(size)
-}
-
-// WriteFile encodes, then writes a QR Code to the given filename in PNG format.
-//
-// size is both the image width and height in pixels. If size is too small then
-// a larger image is silently written. Negative values for size cause a variable
-// sized image to be written: See the documentation for Image().
-func WriteFile(content string, level RecoveryLevel, size int, filename string) error {
-	var q *QRCode
-
-	q, err := New(content, level)
-
-	if err != nil {
-		return err
-	}
-
-	return q.WriteFile(size, filename)
-}
-
-// WriteColorFile encodes, then writes a QR Code to the given filename in PNG format.
-// With WriteColorFile you can also specify the colors you want to use.
-//
-// size is both the image width and height in pixels. If size is too small then
-// a larger image is silently written. Negative values for size cause a variable
-// sized image to be written: See the documentation for Image().
-func WriteColorFile(content string, level RecoveryLevel, size int, background,
-	foreground color.Color, filename string) error {
-
-	var q *QRCode
-
-	q, err := New(content, level)
-
-	q.BackgroundColor = background
-	q.ForegroundColor = foreground
-
-	if err != nil {
-		return err
-	}
-
-	return q.WriteFile(size, filename)
 }
 
 // A QRCode represents a valid encoded QRCode.
@@ -348,40 +291,6 @@ func (q *QRCode) PNG(size int) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
-}
-
-// Write writes the QR Code as a PNG image to io.Writer.
-//
-// size is both the image width and height in pixels. If size is too small then
-// a larger image is silently written. Negative values for size cause a
-// variable sized image to be written: See the documentation for Image().
-func (q *QRCode) Write(size int, out io.Writer) error {
-	var png []byte
-
-	png, err := q.PNG(size)
-
-	if err != nil {
-		return err
-	}
-	_, err = out.Write(png)
-	return err
-}
-
-// WriteFile writes the QR Code as a PNG image to the specified file.
-//
-// size is both the image width and height in pixels. If size is too small then
-// a larger image is silently written. Negative values for size cause a
-// variable sized image to be written: See the documentation for Image().
-func (q *QRCode) WriteFile(size int, filename string) error {
-	var png []byte
-
-	png, err := q.PNG(size)
-
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(filename, png, os.FileMode(0644))
 }
 
 // encode completes the steps required to encode the QR Code. These include

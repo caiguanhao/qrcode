@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -179,7 +180,10 @@ func zbarimgCheck(q *QRCode) error {
 	}
 
 	if s != q.Content {
-		q.WriteFile(256, fmt.Sprintf("%x.png", q.Content))
+		png, err := q.PNG(256)
+		if err == nil {
+			os.WriteFile(fmt.Sprintf("%x.png", q.Content), png, 0644)
+		}
 		return fmt.Errorf("got '%s' (%x) expected '%s' (%x)", s, s, q.Content, q.Content)
 	}
 
