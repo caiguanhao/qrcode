@@ -17,7 +17,7 @@ func main() {
 	size := flag.Int("s", 256, "image size (pixel)")
 	textArt := flag.Bool("t", false, "print as text-art on stdout")
 	negative := flag.Bool("i", false, "invert black and white")
-	disableBorder := flag.Bool("d", false, "disable QR Code border")
+	padding := flag.Int("p", 2, "padding")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `qrcode -- QR Code encoder in Go
 https://github.com/caiguanhao/qrcode
@@ -53,8 +53,8 @@ Usage:
 	q, err = qrcode.New(content, qrcode.Highest)
 	checkError(err)
 
-	if *disableBorder {
-		q.DisableBorder = true
+	if *padding >= 0 {
+		q.QuietZoneSize = *padding
 	}
 
 	if *textArt {
