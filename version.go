@@ -4,7 +4,7 @@
 package qrcode
 
 import (
-	"log"
+	"fmt"
 
 	bitset "github.com/caiguanhao/qrcode/bitset"
 )
@@ -2915,11 +2915,11 @@ func (v qrCodeVersion) formatInfo(maskPattern int) *bitset.Bitset {
 	case Highest:
 		formatID = 0x10 // 0b10000
 	default:
-		log.Panicf("Invalid level %d", v.level)
+		panic(fmt.Sprintf("Invalid level %d", v.level))
 	}
 
 	if maskPattern < 0 || maskPattern > 7 {
-		log.Panicf("Invalid maskPattern %d", maskPattern)
+		panic(fmt.Sprintf("Invalid maskPattern %d", maskPattern))
 	}
 
 	formatID |= maskPattern & 0x7

@@ -11,8 +11,6 @@
 package reedsolomon
 
 import (
-	"log"
-
 	bitset "github.com/caiguanhao/qrcode/bitset"
 )
 
@@ -59,7 +57,7 @@ func Encode(data *bitset.Bitset, numECBytes int) *bitset.Bitset {
 // (x + a^0)(x + a^1)...(x + a^degree-1)
 func rsGeneratorPoly(degree int) gfPoly {
 	if degree < 2 {
-		log.Panic("degree < 2")
+		panic("degree < 2")
 	}
 
 	generator := gfPoly{term: []gfElement{1}}

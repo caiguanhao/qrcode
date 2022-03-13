@@ -8,8 +8,6 @@ package reedsolomon
 
 // http://en.wikipedia.org/wiki/Finite_field_arithmetic
 
-import "log"
-
 const (
 	gfZero = gfElement(0)
 	gfOne  = gfElement(1)
@@ -109,7 +107,7 @@ func gfDivide(a, b gfElement) gfElement {
 	if a == gfZero {
 		return gfZero
 	} else if b == gfZero {
-		log.Panicln("Divide by zero")
+		panic("Divide by zero")
 	}
 
 	return gfMultiply(a, gfInverse(b))
@@ -120,7 +118,7 @@ func gfDivide(a, b gfElement) gfElement {
 // a * a^-1 = 1
 func gfInverse(a gfElement) gfElement {
 	if a == gfZero {
-		log.Panicln("No multiplicative inverse of 0")
+		panic("No multiplicative inverse of 0")
 	}
 
 	return gfExpTable[255-gfLogTable[a]]

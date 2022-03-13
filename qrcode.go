@@ -57,7 +57,6 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 
 	bitset "github.com/caiguanhao/qrcode/bitset"
@@ -406,18 +405,18 @@ func (q *QRCode) encode() {
 		s, err = buildRegularSymbol(q.version, mask, encoded, !q.DisableBorder)
 
 		if err != nil {
-			log.Panic(err.Error())
+			panic(err.Error())
 		}
 
 		numEmptyModules := s.numEmptyModules()
 		if numEmptyModules != 0 {
-			log.Panicf("bug: numEmptyModules is %d (expected 0) (version=%d)",
-				numEmptyModules, q.VersionNumber)
+			panic(fmt.Sprintf("bug: numEmptyModules is %d (expected 0) (version=%d)",
+				numEmptyModules, q.VersionNumber))
 		}
 
 		p := s.penaltyScore()
 
-		//log.Printf("mask=%d p=%3d p1=%3d p2=%3d p3=%3d p4=%d\n", mask, p, s.penalty1(), s.penalty2(), s.penalty3(), s.penalty4())
+		//fmt.Printf("mask=%d p=%3d p1=%3d p2=%3d p3=%3d p4=%d\n", mask, p, s.penalty1(), s.penalty2(), s.penalty3(), s.penalty4())
 
 		if q.symbol == nil || p < penalty {
 			q.symbol = s
@@ -547,7 +546,7 @@ func (q *QRCode) addPadding() {
 	}
 
 	if q.data.Len() != numDataBits {
-		log.Panicf("BUG: got len %d, expected %d", q.data.Len(), numDataBits)
+		panic(fmt.Sprintf("BUG: got len %d, expected %d", q.data.Len(), numDataBits))
 	}
 }
 

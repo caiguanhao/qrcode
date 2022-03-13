@@ -5,7 +5,6 @@ package reedsolomon
 
 import (
 	"fmt"
-	"log"
 
 	bitset "github.com/caiguanhao/qrcode/bitset"
 )
@@ -93,7 +92,7 @@ func gfPolyMultiply(a, b gfPoly) gfPoly {
 // gfPolyRemainder return the remainder of numerator / denominator.
 func gfPolyRemainder(numerator, denominator gfPoly) gfPoly {
 	if denominator.equals(gfPoly{}) {
-		log.Panicln("Remainder by zero")
+		panic("Remainder by zero")
 	}
 
 	remainder := numerator

@@ -5,7 +5,7 @@ package qrcode
 
 import (
 	"errors"
-	"log"
+	"fmt"
 
 	bitset "github.com/caiguanhao/qrcode/bitset"
 )
@@ -153,7 +153,7 @@ func newDataEncoder(t dataEncoderType) *dataEncoder {
 			numByteCharCountBits:         16,
 		}
 	default:
-		log.Panic("Unknown dataEncoderType")
+		panic("Unknown dataEncoderType")
 	}
 
 	return d
@@ -379,7 +379,7 @@ func (d *dataEncoder) modeIndicator(dataMode dataMode) *bitset.Bitset {
 	case dataModeByte:
 		return d.byteModeIndicator
 	default:
-		log.Panic("Unknown data mode")
+		panic("Unknown data mode")
 	}
 
 	return nil
@@ -396,7 +396,7 @@ func (d *dataEncoder) charCountBits(dataMode dataMode) int {
 	case dataModeByte:
 		return d.numByteCharCountBits
 	default:
-		log.Panic("Unknown data mode")
+		panic("Unknown data mode")
 	}
 
 	return 0
@@ -479,7 +479,7 @@ func encodeAlphanumericCharacter(v byte) uint32 {
 	case c == ':':
 		return 44
 	default:
-		log.Panicf("encodeAlphanumericCharacter() with non alphanumeric char %v.", v)
+		panic(fmt.Sprintf("encodeAlphanumericCharacter() with non alphanumeric char %v.", v))
 	}
 
 	return 0
