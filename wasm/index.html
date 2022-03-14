@@ -40,6 +40,10 @@ img {
   padding: 10px;
 }
 
+.codes {
+  margin-left: auto;
+}
+
 .code {
   font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
   font-size: 12px;
@@ -74,6 +78,9 @@ textarea, input[type=text], input[type=number], select {
   width: 300px;
   border-color: #000;
   border-width: 1px;
+  -webkit-appearance: none;
+  border-radius: 0;
+  border-style: solid;
 }
 
 .code.go-code {
@@ -206,13 +213,16 @@ textarea, input[type=text], input[type=number], select {
           return await WebAssembly.instantiate(source, importObject)
         }
       }
+      render(html`<div>Loading...</div>`, qrcode.current)
       WebAssembly.instantiateStreaming(fetch('qrcode.wasm'), go.importObject).then(result => {
         return go.run(result.instance)
+      }, err => {
+        render(html`<div class="error">${err.toString()}</div>`, qrcode.current)
       })
       document.addEventListener('QRCode.Ready', () => {
         renderQRCode()
       })
-    }, [])
+    }, [ qrcode ])
 
     useEffect(() => {
       return () => {
