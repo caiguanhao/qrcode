@@ -1,0 +1,421 @@
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QRCode</title>
+<link rel="stylesheet" href="//unpkg.com/@highlightjs/cdn-assets@11.5.0/styles/monokai-sublime.min.css" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="//unpkg.com/@highlightjs/cdn-assets@11.5.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+<style>
+html {
+  font-family: Arial;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+}
+
+.main {
+  display: flex;
+  align-items: flex-start;
+}
+
+td {
+  padding: 10px;
+  vertical-align: top;
+}
+
+td:first-child {
+  padding-top: 18px;
+}
+
+img {
+  max-width: 600px;
+  max-height: 600px;
+}
+
+.pad,
+.qrcode {
+  padding: 10px;
+}
+
+.code {
+  font-family: ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.qrcode .code {
+  line-height: 12px;
+}
+
+.code.data {
+  margin-top: 10px;
+  max-width: 600px;
+  line-height: 16px;
+}
+
+.select-all {
+  margin-top: 10px;
+}
+
+input[type=color] {
+  height: 32.5px;
+}
+
+input[type=text], input[type=number], select {
+  font-size: 16px;
+  padding: 6px 8px;
+  width: 350px;
+  border-color: #000;
+  border-width: 1px;
+}
+
+.code.js-code {
+  max-width: 350px;
+}
+
+.error {
+  color: red;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background: #323232;
+    color: #f3f3f3;
+  }
+
+  input[type=text], input[type=number], select {
+    background: #212121;
+    color: #f3f3f3;
+    border-color: #000;
+  }
+
+  input[type=text]:disabled, input[type=number]:disabled, select:disabled {
+    color: #3c3c3c;
+  }
+}
+
+@media (max-width: 600px) {
+  .main {
+    flex-direction: column;
+  }
+
+  input[type=text], input[type=number], select {
+    width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+<div class="pad">Loading...</div>
+<script type="module">
+  import { html, render, useCallback, useEffect, useMemo, useRef, useState } from 'https://unpkg.com/htm@3.1.0/preact/standalone.module.js'
+  import HighlightJS from 'https://unpkg.com/@highlightjs/cdn-assets@11.5.0/es/core.js'
+  import Javascript from 'https://unpkg.com/@highlightjs/cdn-assets@11.5.0/es/languages/javascript.min.js'
+  import 'https://unpkg.com/esbuild-wasm@0.14.26/wasm_exec.js'
+  // import './wasm_exec.js'
+
+  HighlightJS.registerLanguage('javascript', Javascript);
+
+  const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url' ]
+  const levels = [ 'low', 'medium', 'high', 'highest' ]
+
+  render(html`<${App} />`, document.body)
+
+  function reset () {
+    window.localStorage.clear()
+    render(null, document.body)
+    render(html`<${App} />`, document.body)
+  }
+
+  function App (props) {
+    const [ format, setFormat ] = useLocalStorage('format', 'object-url')
+    const [ level, setLevel ] = useLocalStorage('level', 'medium')
+    const [ content, setContent ] = useState('https://example.org')
+    const [ padding, setPadding ] = useLocalStorage('padding', 2)
+    const [ size, setSize ] = useLocalStorage('size', -15)
+    const [ backgroundColor, __setBackgroundColor ] = useLocalStorage('backgroundColor', '#ffffff')
+    const [ foregroundColor, __setForegroundColor ] = useLocalStorage('foregroundColor', '#000000')
+    const [ showMore, setShowMore ] = useLocalStorage('more', false)
+    const qrcode = useRef(null)
+    const setBackgroundColor = useCallback(debounce(__setBackgroundColor, 20))
+    const setForegroundColor = useCallback(debounce(__setForegroundColor, 20))
+    const opts = useMemo(() => ({
+      format, level, content, padding, size, backgroundColor, foregroundColor,
+    }), [ format, level, content, padding, size, backgroundColor, foregroundColor ])
+
+    const renderQRCode = useCallback(() => {
+      if (typeof(QRCode) !== 'function') return
+      QRCode(opts).then(data => {
+        if (format === 'object-url') {
+          render(html`
+            <div><img src=${data} onload=${() => URL.revokeObjectURL(data)} /></div>
+            <div class="code data">${data}</div>
+          `, qrcode.current)
+        } else if (format === 'uint8array') {
+          const url = URL.createObjectURL(new Blob([ data ]))
+          render(html`
+            <div><img src=${url} onload=${() => URL.revokeObjectURL(url)} /></div>
+            <div class="code data">[]byte{${data.map(b => b).join(', ')}}</div>
+          `, qrcode.current)
+        } else if (format === 'blob') {
+          data.arrayBuffer().then(buf => {
+            const str = Array.from(new Uint8Array(buf)).map(x => `0x${x.toString(16).padStart(2, '0')}`).join(', ')
+            const url = URL.createObjectURL(data)
+            render(html`
+              <div><img src=${url} onload=${() => URL.revokeObjectURL(url)} /></div>
+              <div class="code data">[]byte{${str}}</div>
+            `, qrcode.current)
+          })
+        } else if (format === 'base64') {
+          const url = `data:image/png;base64,${data}`
+          render(html`
+            <div><img src=${url} /></div>
+            <div class="code data">${url}</div>
+          `, qrcode.current)
+        } else {
+          render(html`
+            <div class="code" style=${{ color: foregroundColor, backgroundColor }}>${String(data)}</div>
+            <button class="select-all" onClick=${selectAll}>Select All</button>
+          `, qrcode.current)
+        }
+      }, err => {
+        render(html`<div class="error">${err.toString()}</div>`, qrcode.current)
+      })
+    }, [ opts ])
+
+    useEffect(() => {
+      renderQRCode()
+    }, [ opts ])
+
+    useEffect(() => {
+      if (typeof(QRCode) === 'function') return
+      const go = new Go()
+      if (!WebAssembly.instantiateStreaming) { // polyfill
+        WebAssembly.instantiateStreaming = async (resp, importObject) => {
+          const source = await (await resp).arrayBuffer()
+          return await WebAssembly.instantiate(source, importObject)
+        }
+      }
+      WebAssembly.instantiateStreaming(fetch('qrcode.wasm'), go.importObject).then(result => {
+        return go.run(result.instance)
+      })
+      document.addEventListener('QRCode.Ready', () => {
+        renderQRCode()
+      })
+    }, [])
+
+    const swapColor = useCallback(() => {
+      const fg = foregroundColor
+      setForegroundColor(backgroundColor)
+      setBackgroundColor(fg)
+    }, [ backgroundColor, foregroundColor ])
+
+    return html`
+      <div class="main">
+        <table>
+          <tr>
+            <td>Format</td>
+            <td>
+              <select onChange=${e => setFormat(e.target.value)}>
+                ${formats.map(fmt => html`<option selected=${format === fmt} value="${fmt}">${fmt}</option>`)}
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Content</td>
+            <td><input type="text" value=${content} onInput=${e => setContent(e.target.value)} /></td>
+          </tr>
+          <tr>
+            <td>Level</td>
+            <td>
+              <select onChange=${e => setLevel(e.target.value)}>
+                ${levels.map(lvl => html`<option selected=${level === lvl} value="${lvl}">${lvl}</option>`)}
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Size</td>
+            <td><input type="number" step="1" disabled=${format.indexOf('string') > -1}
+              value=${size} onInput=${e => setSize(Math.round(e.target.value))} /></td>
+          </tr>
+          <tr>
+            <td>Padding</td>
+            <td><input type="number" min="0" step="1" value=${padding} onInput=${e => setPadding(Math.round(e.target.value))} /></td>
+          </tr>
+          <tr>
+            <td>Background Color</td>
+            <td>
+              <input type="color" value=${backgroundColor} onInput=${e => setBackgroundColor(e.target.value)} />
+            </td>
+          </tr>
+          <tr>
+            <td>Foreground Color</td>
+            <td><input type="color" value=${foregroundColor} onInput=${e => setForegroundColor(e.target.value)} /></td>
+          </tr>
+          <tr>
+            <td>
+              <div>Code</div>
+              <div style="margin-top: 5px">
+                <label><input type="checkbox" checked=${showMore} onChange=${e => setShowMore(e.target.checked)} /> show more</label>
+              </div>
+            </td>
+            <td>
+              <div class="code js-code" dangerouslySetInnerHTML=${{ __html:
+                HighlightJS.highlight(optsToCode(opts, showMore), { language: 'javascript' }).value}} />
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>
+              <button onClick=${reset}>Reset</button>
+              <button onClick=${swapColor} style="margin-left: 5px">Swap Colors</button>
+            </td>
+          </tr>
+        </table>
+        <div class="qrcode" ref=${qrcode}></div>
+      </div>
+    `
+  }
+
+  function selectAll (e) {
+    window.getSelection().selectAllChildren(e.target.previousSibling)
+  }
+
+  function optsToCode (opts, showMore) {
+    const optsStr = JSON.stringify(opts, null, 2).replace(/^(.+?)"([^"]+)"/mg, '$1$2')
+    let resolve = null
+    if (opts.format === 'object-url') {
+      resolve = `url => {
+  const img = document.createElement('img')
+  img.src = url
+  img.onload = () => URL.revokeObjectURL(url)
+  document.body.appendChild(img)
+}`
+    } else if (opts.format === 'uint8array') {
+      resolve = `data => {
+  const url = URL.createObjectURL(new Blob([ data ]))
+  const img = document.createElement('img')
+  img.src = url
+  img.onload = () => URL.revokeObjectURL(url)
+  document.body.appendChild(img)
+}`
+    } else if (opts.format === 'blob') {
+      resolve = `blob => {
+  const url = URL.createObjectURL(blob)
+  const img = document.createElement('img')
+  img.src = url
+  img.onload = () => URL.revokeObjectURL(url)
+  document.body.appendChild(img)
+}`
+    } else if (opts.format === 'base64') {
+      resolve = `base64 => {
+  const img = document.createElement('img')
+  img.src = \`data:image/png;base64,\${base64}\`
+  document.body.appendChild(img)
+}`
+    } else {
+      resolve = `data => {
+  console.log(data)
+}`
+    }
+    const qrcode = `QRCode(${optsStr}).then(${resolve}, err => {
+  console.error(err)
+})`
+    if (!showMore) return qrcode
+    return `// <script src="wasm_exec.js"></`+`script>
+const go = new Go()
+if (!WebAssembly.instantiateStreaming) { // polyfill
+  WebAssembly.instantiateStreaming = async (resp, importObject) => {
+    const source = await (await resp).arrayBuffer()
+    return await WebAssembly.instantiate(source, importObject)
+  }
+}
+WebAssembly.instantiateStreaming(fetch('qrcode.wasm'), go.importObject).then(result => {
+  return go.run(result.instance)
+})
+document.addEventListener('QRCode.Ready', () => {
+${qrcode.replace(/^/mg, '  ')}
+})`
+  }
+
+  // https://usehooks.com/useLocalStorage/
+  function useLocalStorage (key, initialValue) {
+    const [storedValue, setStoredValue] = useState(() => {
+      try {
+        const item = window.localStorage.getItem(key)
+        return item ? JSON.parse(item) : initialValue
+      } catch (error) {
+        console.log(error)
+        return initialValue
+      }
+    })
+    const setValue = (value) => {
+      try {
+        const valueToStore = value instanceof Function ? value(storedValue) : value
+        setStoredValue(valueToStore)
+        window.localStorage.setItem(key, JSON.stringify(valueToStore))
+      } catch (error) {
+        console.log(error)
+      }
+    }
+    return [ storedValue, setValue ]
+  }
+
+  // https://unpkg.com/debounce@1.2.1/index.js
+  function debounce (func, wait, immediate){
+    var timeout, args, context, timestamp, result
+    if (null == wait) wait = 100
+
+    function later() {
+      var last = Date.now() - timestamp
+
+      if (last < wait && last >= 0) {
+        timeout = setTimeout(later, wait - last)
+      } else {
+        timeout = null
+        if (!immediate) {
+          result = func.apply(context, args)
+          context = args = null
+        }
+      }
+    }
+
+    var debounced = function(){
+      context = this
+      args = arguments
+      timestamp = Date.now()
+      var callNow = immediate && !timeout
+      if (!timeout) timeout = setTimeout(later, wait)
+      if (callNow) {
+        result = func.apply(context, args)
+        context = args = null
+      }
+
+      return result
+    }
+
+    debounced.clear = function() {
+      if (timeout) {
+        clearTimeout(timeout)
+        timeout = null
+      }
+    }
+
+    debounced.flush = function() {
+      if (timeout) {
+        result = func.apply(context, args)
+        context = args = null
+        clearTimeout(timeout)
+        timeout = null
+      }
+    }
+
+    return debounced
+  }
+</script>
+</body>
+</html>
