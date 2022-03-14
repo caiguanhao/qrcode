@@ -35,7 +35,8 @@ img {
 }
 
 .pad,
-.qrcode {
+.qrcode,
+.codes {
   padding: 10px;
 }
 
@@ -49,12 +50,14 @@ img {
 
 .qrcode .code {
   line-height: 12px;
+  white-space: pre;
 }
 
 .code.data {
   margin-top: 10px;
   max-width: 600px;
   line-height: 16px;
+  white-space: pre-wrap;
 }
 
 .select-all {
@@ -65,16 +68,16 @@ input[type=color] {
   height: 32.5px;
 }
 
-input[type=text], input[type=number], select {
+textarea, input[type=text], input[type=number], select {
   font-size: 16px;
   padding: 6px 8px;
-  width: 350px;
+  width: 300px;
   border-color: #000;
   border-width: 1px;
 }
 
-.code.js-code {
-  max-width: 350px;
+.code.go-code {
+  margin-bottom: 20px;
 }
 
 .error {
@@ -87,13 +90,13 @@ input[type=text], input[type=number], select {
     color: #f3f3f3;
   }
 
-  input[type=text], input[type=number], select {
+  textarea, input[type=text], input[type=number], select {
     background: #212121;
     color: #f3f3f3;
     border-color: #000;
   }
 
-  input[type=text]:disabled, input[type=number]:disabled, select:disabled {
+  textarea:disabled, input[type=text]:disabled, input[type=number]:disabled, select:disabled {
     color: #3c3c3c;
   }
 }
@@ -115,10 +118,12 @@ input[type=text], input[type=number], select {
   import { html, render, useCallback, useEffect, useMemo, useRef, useState } from 'https://unpkg.com/htm@3.1.0/preact/standalone.module.js'
   import HighlightJS from 'https://unpkg.com/@highlightjs/cdn-assets@11.5.0/es/core.js'
   import Javascript from 'https://unpkg.com/@highlightjs/cdn-assets@11.5.0/es/languages/javascript.min.js'
+  import Golang from 'https://unpkg.com/@highlightjs/cdn-assets@11.5.0/es/languages/go.min.js'
   import 'https://unpkg.com/esbuild-wasm@0.14.26/wasm_exec.js'
   // import './wasm_exec.js'
 
-  HighlightJS.registerLanguage('javascript', Javascript);
+  HighlightJS.registerLanguage('javascript', Javascript)
+  HighlightJS.registerLanguage('go', Golang)
 
   const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url' ]
   const levels = [ 'low', 'medium', 'high', 'highest' ]
@@ -140,6 +145,7 @@ input[type=text], input[type=number], select {
     const [ backgroundColor, __setBackgroundColor ] = useLocalStorage('backgroundColor', '#ffffff')
     const [ foregroundColor, __setForegroundColor ] = useLocalStorage('foregroundColor', '#000000')
     const [ showMore, setShowMore ] = useLocalStorage('more', false)
+    const [ random, setRandom ] = useState(null)
     const qrcode = useRef(null)
     const setBackgroundColor = useCallback(debounce(__setBackgroundColor, 20))
     const setForegroundColor = useCallback(debounce(__setForegroundColor, 20))
@@ -208,6 +214,24 @@ input[type=text], input[type=number], select {
       })
     }, [])
 
+    useEffect(() => {
+      return () => {
+        clearInterval(random)
+      }
+    }, [ random ])
+
+    const toggleRandom = useCallback(() => {
+      clearInterval(random)
+      if (random) {
+        setRandom(null)
+      } else {
+        setRandom(setInterval(() => {
+          setBackgroundColor(randomColor())
+          setForegroundColor(randomColor())
+        }, 200))
+      }
+    }, [ random ])
+
     const swapColor = useCallback(() => {
       const fg = foregroundColor
       setForegroundColor(backgroundColor)
@@ -227,7 +251,9 @@ input[type=text], input[type=number], select {
           </tr>
           <tr>
             <td>Content</td>
-            <td><input type="text" value=${content} onInput=${e => setContent(e.target.value)} /></td>
+            <td>
+              <textarea value=${content} onInput=${e => setContent(e.target.value)} rows="5" />
+            </td>
           </tr>
           <tr>
             <td>Level</td>
@@ -249,23 +275,19 @@ input[type=text], input[type=number], select {
           <tr>
             <td>Background Color</td>
             <td>
-              <input type="color" value=${backgroundColor} onInput=${e => setBackgroundColor(e.target.value)} />
+              <div style="display: flex; align-items: center">
+                <input type="color" value=${backgroundColor} onInput=${e => setBackgroundColor(e.target.value)} />
+                <button style="margin-left: 10px" onClick=${() => setBackgroundColor(randomColor())}>Random</button>
+              </div>
             </td>
           </tr>
           <tr>
             <td>Foreground Color</td>
-            <td><input type="color" value=${foregroundColor} onInput=${e => setForegroundColor(e.target.value)} /></td>
-          </tr>
-          <tr>
             <td>
-              <div>Code</div>
-              <div style="margin-top: 5px">
-                <label><input type="checkbox" checked=${showMore} onChange=${e => setShowMore(e.target.checked)} /> show more</label>
+              <div style="display: flex; align-items: center">
+                <input type="color" value=${foregroundColor} onInput=${e => setForegroundColor(e.target.value)} />
+                <button style="margin-left: 10px" onClick=${() => setForegroundColor(randomColor())}>Random</button>
               </div>
-            </td>
-            <td>
-              <div class="code js-code" dangerouslySetInnerHTML=${{ __html:
-                HighlightJS.highlight(optsToCode(opts, showMore), { language: 'javascript' }).value}} />
             </td>
           </tr>
           <tr>
@@ -273,10 +295,20 @@ input[type=text], input[type=number], select {
             <td>
               <button onClick=${reset}>Reset</button>
               <button onClick=${swapColor} style="margin-left: 5px">Swap Colors</button>
+              <button onClick=${toggleRandom} style="margin-left: 5px">${random ? 'Stop' : 'Auto Random'}</button>
             </td>
           </tr>
         </table>
         <div class="qrcode" ref=${qrcode}></div>
+        <div class="codes">
+          <div class="code go-code" dangerouslySetInnerHTML=${{ __html:
+            HighlightJS.highlight(optsToGoCode(opts), { language: 'go' }).value}} />
+          <div class="code js-code" dangerouslySetInnerHTML=${{ __html:
+            HighlightJS.highlight(optsToJsCode(opts, showMore), { language: 'javascript' }).value}} />
+          <div style="margin-top: 5px">
+            <label><input type="checkbox" checked=${showMore} onChange=${e => setShowMore(e.target.checked)} /> show more</label>
+          </div>
+        </div>
       </div>
     `
   }
@@ -285,7 +317,39 @@ input[type=text], input[type=number], select {
     window.getSelection().selectAllChildren(e.target.previousSibling)
   }
 
-  function optsToCode (opts, showMore) {
+  function optsToGoCode (opts) {
+    const comments = opts.format.indexOf('string') > -1 ? '// ' : ''
+    const code = `// go
+content := ${JSON.stringify(opts.content)}
+lvl := qrcode.${opts.level.slice(0, 1).toUpperCase()}${opts.level.slice(1)}
+q, err := qrcode.New(content, lvl)
+if err != nil {
+	panic(err)
+}
+q.QuietZoneSize = ${opts.padding}
+${comments}q.BackgroundColor = ${hexToRGB(opts.backgroundColor)}
+${comments}q.ForegroundColor = ${hexToRGB(opts.foregroundColor)}
+`
+    if (opts.format === 'string') {
+      return code + `fmt.Print(q.ToString(false))`
+    } else if (opts.format === 'string-inverted') {
+      return code + `fmt.Print(q.ToString(true))`
+    } else if (opts.format === 'small-string') {
+      return code + `fmt.Print(q.ToSmallString(false))`
+    } else if (opts.format === 'small-string-inverted') {
+      return code + `fmt.Print(q.ToSmallString(true))`
+    } else {
+      return code + `b, err := q.PNG(${opts.size})
+if err != nil {
+	panic(err)
+}
+os.WriteFile("qrcode.png", b, 0644)
+`
+}
+
+  }
+
+  function optsToJsCode (opts, showMore) {
     const optsStr = JSON.stringify(opts, null, 2).replace(/^(.+?)"([^"]+)"/mg, '$1$2')
     let resolve = null
     if (opts.format === 'object-url') {
@@ -322,7 +386,8 @@ input[type=text], input[type=number], select {
   console.log(data)
 }`
     }
-    const qrcode = `QRCode(${optsStr}).then(${resolve}, err => {
+    const qrcode = `// javascript
+QRCode(${optsStr}).then(${resolve}, err => {
   console.error(err)
 })`
     if (!showMore) return qrcode
@@ -340,6 +405,14 @@ WebAssembly.instantiateStreaming(fetch('qrcode.wasm'), go.importObject).then(res
 document.addEventListener('QRCode.Ready', () => {
 ${qrcode.replace(/^/mg, '  ')}
 })`
+  }
+
+  function hexToRGB (hex) {
+    return `color.RGBA{0x${hex.slice(1, 3)}, 0x${hex.slice(3, 5)}, 0x${hex.slice(5, 7)}, 0xff}`
+  }
+
+  function randomColor () {
+    return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
   }
 
   // https://usehooks.com/useLocalStorage/
