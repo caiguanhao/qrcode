@@ -140,7 +140,7 @@ textarea, input[type=text], input[type=number], select {
   HighlightJS.registerLanguage('javascript', Javascript)
   HighlightJS.registerLanguage('go', Golang)
 
-  const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url', 'svg' ]
+  const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url', 'svg', 'svg-paths' ]
   const levels = [ 'low', 'medium', 'high', 'highest' ]
 
   render(html`<${App} />`, document.body)
@@ -152,7 +152,7 @@ textarea, input[type=text], input[type=number], select {
   }
 
   function App (props) {
-    const [ format, setFormat ] = useLocalStorage('format', 'svg')
+    const [ format, setFormat ] = useLocalStorage('format', 'svg-paths')
     const [ level, setLevel ] = useLocalStorage('level', 'medium')
     const [ content, setContent ] = useState('https://example.org')
     const [ padding, setPadding ] = useLocalStorage('padding', 2)
@@ -171,7 +171,7 @@ textarea, input[type=text], input[type=number], select {
     const renderQRCode = useCallback(() => {
       if (typeof(QRCode) !== 'function') return
       QRCode(opts).then(data => {
-        if (format === 'svg') {
+        if (format === 'svg' || format === 'svg-paths') {
           let size = opts.size
           if (size <= 0) {
             size = 200
@@ -185,6 +185,7 @@ textarea, input[type=text], input[type=number], select {
           }
           render(html`
             <div style=${{ width: `${size}px` }} dangerouslySetInnerHTML=${{ __html: data }} />
+            <${CopySVGButton} data=${data} />
           `, qrcode.current)
         } else if (format === 'object-url') {
           render(html`
@@ -347,6 +348,24 @@ textarea, input[type=text], input[type=number], select {
     `
   }
 
+  function CopySVGButton ({ data }) {
+    const [ status, setStatus ] = useState(0)
+    const copySVG = useCallback(() => {
+      navigator.clipboard.writeText(data).then(() => {
+        setStatus(1)
+      }).catch(() => {
+        setStatus(2)
+      }).then(() => {
+        setTimeout(() => {
+          setStatus(0)
+        }, 2000)
+      })
+    }, [ data ])
+    return html`<button class="select-all" onClick=${copySVG} disabled=${status !== 0}>
+      ${status === 1 ? 'SVG Copied' : (status === 2 ? 'Failed to copy!' : 'Copy SVG')}
+    </button>`
+  }
+
   function selectAll (e) {
     window.getSelection().selectAllChildren(e.target.previousSibling)
   }
@@ -372,8 +391,8 @@ ${comments}q.ForegroundColor = ${hexToRGB(opts.foregroundColor)}
       return code + `fmt.Print(q.ToSmallString(false))`
     } else if (opts.format === 'small-string-inverted') {
       return code + `fmt.Print(q.ToSmallString(true))`
-    } else if (opts.format === 'svg') {
-      return code + `b, err := q.SVG(${opts.size})
+    } else if (opts.format === 'svg' || opts.format === 'svg-paths') {
+      return code + `b, err := q.SVG(${opts.size}, ${opts.format === 'svg-paths'})
 if err != nil {
 	panic(err)
 }

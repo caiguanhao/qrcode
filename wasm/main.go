@@ -113,7 +113,14 @@ func newQRCode(inputs []js.Value) (interface{}, interface{}) {
 		return q.ToSmallString(true), nil
 	}
 	if format == "svg" {
-		data, err := q.SVG(size)
+		data, err := q.SVG(size, false)
+		if err != nil {
+			return nil, err
+		}
+		return string(data), nil
+	}
+	if format == "svg-paths" {
+		data, err := q.SVG(size, true)
 		if err != nil {
 			return nil, err
 		}

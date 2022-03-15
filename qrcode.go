@@ -298,9 +298,15 @@ type svgElement struct {
 	XMLName        xml.Name   `xml:"svg"`
 	NS             string     `xml:"xmlns,attr"`
 	ViewBox        string     `xml:"viewBox,attr"`
+	Paths          []svgPath  `xml:"path"`
 	Blocks         []svgBlock `xml:"rect"`
 	Groups         []svgGroup `xml:"g"`
 	ShapeRendering string     `xml:"shape-rendering,attr"`
+}
+
+type svgPath struct {
+	Fill string `xml:"fill,attr"`
+	Draw string `xml:"d,attr"`
 }
 
 type svgGroup struct {
@@ -316,8 +322,8 @@ type svgBlock struct {
 	Fill   string `xml:"fill,attr,omitempty"`
 }
 
-// SVG returns the QR Code as a SVG image.
-func (q *QRCode) SVG(size int) ([]byte, error) {
+// SVG returns the QR Code as a SVG image. Use SVG paths to reduce file size.
+func (q *QRCode) SVG(size int, usePaths bool) ([]byte, error) {
 	bitmap := q.Bitmap()
 
 	columns := len(bitmap)
@@ -362,16 +368,54 @@ func (q *QRCode) SVG(size int) ([]byte, error) {
 	var svg svgElement
 	svg.NS = "http://www.w3.org/2000/svg"
 	svg.ViewBox = fmt.Sprintf("0 0 %d %d", size, size)
-	svg.Blocks = append(svg.Blocks, svgBlock{
-		X:      0,
-		Y:      0,
-		Width:  size,
-		Height: size,
-		Fill:   color2hex(q.BackgroundColor),
-	})
 	svg.ShapeRendering = "crispEdges"
 
-	if len(blocks) > 0 {
+	if usePaths {
+		svg.Paths = append(svg.Paths, svgPath{
+			Fill: color2hex(q.BackgroundColor),
+			Draw: fmt.Sprintf("M0 0h%dv%dH0z", size, size),
+		})
+	} else {
+		svg.Blocks = append(svg.Blocks, svgBlock{
+			X:      0,
+			Y:      0,
+			Width:  size,
+			Height: size,
+			Fill:   color2hex(q.BackgroundColor),
+		})
+	}
+
+	if usePaths && len(blocks) > 0 {
+		var buf bytes.Buffer
+		var x, y int
+		for _, b := range blocks {
+			// use absolute coordinates:
+			// buf.WriteString(fmt.Sprintf("M%d %dh%dv%dh%dz", b.X, b.Y, b.Width, b.Height, b.Width*-1))
+			// use shorter coordinates if possible:
+			moveto := fmt.Sprintf("m%d %d", b.X-x, b.Y-y)
+			MOVETO := fmt.Sprintf("M%d %d", b.X, b.Y)
+			if len(moveto) < len(MOVETO) {
+				buf.WriteString(moveto)
+			} else {
+				buf.WriteString(MOVETO)
+			}
+			buf.WriteString(fmt.Sprintf("h%d", b.Width))  // hlineto
+			buf.WriteString(fmt.Sprintf("v%d", b.Height)) // vlineto
+			closepath := fmt.Sprintf("h%dz", b.Width*-1)
+			CLOSEPATH := fmt.Sprintf("H%dz", b.X)
+			if len(CLOSEPATH) < len(closepath) {
+				buf.WriteString(CLOSEPATH)
+			} else {
+				buf.WriteString(closepath)
+			}
+			x = b.X
+			y = b.Y
+		}
+		svg.Paths = append(svg.Paths, svgPath{
+			Fill: color2hex(q.ForegroundColor),
+			Draw: buf.String(),
+		})
+	} else if len(blocks) > 0 {
 		svg.Groups = append(svg.Groups, svgGroup{
 			Fill:   color2hex(q.ForegroundColor),
 			Blocks: blocks,
