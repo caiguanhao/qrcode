@@ -112,6 +112,13 @@ func newQRCode(inputs []js.Value) (interface{}, interface{}) {
 	if format == "small-string-inverted" {
 		return q.ToSmallString(true), nil
 	}
+	if format == "svg" {
+		data, err := q.SVG(size)
+		if err != nil {
+			return nil, err
+		}
+		return string(data), nil
+	}
 	if format == "base64" || format == "uint8array" || format == "blob" || format == "object-url" {
 		data, err := q.PNG(size)
 		if err != nil {

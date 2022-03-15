@@ -36,6 +36,7 @@ package qrcode
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"image"
@@ -291,6 +292,98 @@ func (q *QRCode) PNG(size int) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+type svgElement struct {
+	XMLName        xml.Name   `xml:"svg"`
+	NS             string     `xml:"xmlns,attr"`
+	ViewBox        string     `xml:"viewBox,attr"`
+	Blocks         []svgBlock `xml:"rect"`
+	Groups         []svgGroup `xml:"g"`
+	ShapeRendering string     `xml:"shape-rendering,attr"`
+}
+
+type svgGroup struct {
+	Fill   string     `xml:"fill,attr"`
+	Blocks []svgBlock `xml:"rect"`
+}
+
+type svgBlock struct {
+	X      int    `xml:"x,attr"`
+	Y      int    `xml:"y,attr"`
+	Width  int    `xml:"width,attr"`
+	Height int    `xml:"height,attr"`
+	Fill   string `xml:"fill,attr,omitempty"`
+}
+
+// SVG returns the QR Code as a SVG image.
+func (q *QRCode) SVG(size int) ([]byte, error) {
+	bitmap := q.Bitmap()
+
+	columns := len(bitmap)
+
+	if size > 0 {
+		size = size / columns * columns
+	} else {
+		size = size * -1 * columns
+	}
+
+	if size < 1 {
+		size = columns
+	}
+
+	var blocks []svgBlock
+	blockSize := size / columns
+	if blockSize < 1 {
+		blockSize = 1
+	}
+	for y := 0; y < columns; y++ {
+		w := 0
+		for x := 0; x < columns; x++ {
+			if !bitmap[y][x] {
+				w = 0
+				continue
+			}
+			if w > 0 {
+				w += blockSize
+				blocks[len(blocks)-1].Width = w
+				continue
+			}
+			w += blockSize
+			blocks = append(blocks, svgBlock{
+				X:      x * blockSize,
+				Y:      y * blockSize,
+				Width:  w,
+				Height: blockSize,
+			})
+		}
+	}
+
+	var svg svgElement
+	svg.NS = "http://www.w3.org/2000/svg"
+	svg.ViewBox = fmt.Sprintf("0 0 %d %d", size, size)
+	svg.Blocks = append(svg.Blocks, svgBlock{
+		X:      0,
+		Y:      0,
+		Width:  size,
+		Height: size,
+		Fill:   color2hex(q.BackgroundColor),
+	})
+	svg.ShapeRendering = "crispEdges"
+
+	if len(blocks) > 0 {
+		svg.Groups = append(svg.Groups, svgGroup{
+			Fill:   color2hex(q.ForegroundColor),
+			Blocks: blocks,
+		})
+	}
+
+	return xml.MarshalIndent(svg, "", "  ")
+}
+
+func color2hex(c color.Color) string {
+	rgba := color.RGBAModel.Convert(c).(color.RGBA)
+	return fmt.Sprintf("#%.2x%.2x%.2x", rgba.R, rgba.G, rgba.B)
 }
 
 // encode completes the steps required to encode the QR Code. These include

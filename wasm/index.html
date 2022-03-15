@@ -72,6 +72,14 @@ input[type=color] {
   height: 32.5px;
 }
 
+select {
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 16px 12px;
+}
+
 textarea, input[type=text], input[type=number], select {
   font-size: 16px;
   padding: 6px 8px;
@@ -98,7 +106,7 @@ textarea, input[type=text], input[type=number], select {
   }
 
   textarea, input[type=text], input[type=number], select {
-    background: #212121;
+    background-color: #212121;
     color: #f3f3f3;
     border-color: #000;
   }
@@ -132,7 +140,7 @@ textarea, input[type=text], input[type=number], select {
   HighlightJS.registerLanguage('javascript', Javascript)
   HighlightJS.registerLanguage('go', Golang)
 
-  const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url' ]
+  const formats = [ 'string', 'string-inverted', 'small-string', 'small-string-inverted', 'base64', 'uint8array', 'blob', 'object-url', 'svg' ]
   const levels = [ 'low', 'medium', 'high', 'highest' ]
 
   render(html`<${App} />`, document.body)
@@ -144,7 +152,7 @@ textarea, input[type=text], input[type=number], select {
   }
 
   function App (props) {
-    const [ format, setFormat ] = useLocalStorage('format', 'object-url')
+    const [ format, setFormat ] = useLocalStorage('format', 'svg')
     const [ level, setLevel ] = useLocalStorage('level', 'medium')
     const [ content, setContent ] = useState('https://example.org')
     const [ padding, setPadding ] = useLocalStorage('padding', 2)
@@ -163,7 +171,22 @@ textarea, input[type=text], input[type=number], select {
     const renderQRCode = useCallback(() => {
       if (typeof(QRCode) !== 'function') return
       QRCode(opts).then(data => {
-        if (format === 'object-url') {
+        if (format === 'svg') {
+          let size = opts.size
+          if (size <= 0) {
+            size = 200
+            const matches = data.match(/viewBox="([0-9\s]+)"/)
+            if (matches) {
+              const nums = matches[1].split(/\s+/)
+              if (nums.length === 4) {
+                size = parseInt(nums[2])
+              }
+            }
+          }
+          render(html`
+            <div style=${{ width: `${size}px` }} dangerouslySetInnerHTML=${{ __html: data }} />
+          `, qrcode.current)
+        } else if (format === 'object-url') {
           render(html`
             <div><img src=${data} onload=${() => URL.revokeObjectURL(data)} /></div>
             <div class="code data">${data}</div>
@@ -317,6 +340,7 @@ textarea, input[type=text], input[type=number], select {
             HighlightJS.highlight(optsToJsCode(opts, showMore), { language: 'javascript' }).value}} />
           <div style="margin-top: 5px">
             <label><input type="checkbox" checked=${showMore} onChange=${e => setShowMore(e.target.checked)} /> show more</label>
+            <div style="margin-top: 5px; font-size: 12px"><a href="https://github.com/caiguanhao/qrcode" target="_blank">Source Code</a></div>
           </div>
         </div>
       </div>
@@ -348,6 +372,13 @@ ${comments}q.ForegroundColor = ${hexToRGB(opts.foregroundColor)}
       return code + `fmt.Print(q.ToSmallString(false))`
     } else if (opts.format === 'small-string-inverted') {
       return code + `fmt.Print(q.ToSmallString(true))`
+    } else if (opts.format === 'svg') {
+      return code + `b, err := q.SVG(${opts.size})
+if err != nil {
+	panic(err)
+}
+os.WriteFile("qrcode.svg", b, 0644)
+`
     } else {
       return code + `b, err := q.PNG(${opts.size})
 if err != nil {
